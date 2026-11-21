@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { parseScheduleData } from "../src/data/load-schedule.js";
+import { readFile } from "node:fs/promises";
+import { loadScheduleData, parseScheduleData, serializeScheduleData } from "../src/data/schedule-file.js";
+import { sampleDataPath } from "./support/sample-data-copy.js";
 
 const shift = {
   id: "shf_1",
@@ -29,5 +31,13 @@ describe("parseScheduleData", () => {
     const local = { ...shift, start: "2026-09-15T22:00:00-04:00" };
 
     expect(() => parseScheduleData({ agents: [], shifts: [local], assignments: [] })).toThrow();
+  });
+
+  it("serializes back to the same JSON it was parsed from", async () => {
+    const original = JSON.parse(await readFile(sampleDataPath, "utf8"));
+    const serialized = serializeScheduleData(await loadScheduleData(sampleDataPath));
+
+    expect(JSON.parse(serialized)).toEqual(original);
+    expect(serialized).toContain('"start": "2026-09-15T22:00:00Z"');
   });
 });

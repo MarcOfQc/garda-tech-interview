@@ -25,8 +25,10 @@ export function isBookedDuring(agent: Agent, shift: Shift, data: ScheduleData): 
     .some((bookedShift) => bookedShift !== undefined && overlaps(bookedShift, shift));
 }
 
+export function isAvailable(agent: Agent, shift: Shift, data: ScheduleData): boolean {
+  return holdsValidQualifications(agent, shift) && !isBookedDuring(agent, shift, data);
+}
+
 export function findAvailableAgents(shift: Shift, data: ScheduleData): Agent[] {
-  return data.agents.filter(
-    (agent) => holdsValidQualifications(agent, shift) && !isBookedDuring(agent, shift, data),
-  );
+  return data.agents.filter((agent) => isAvailable(agent, shift, data));
 }

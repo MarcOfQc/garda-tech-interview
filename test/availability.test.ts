@@ -5,23 +5,8 @@ import {
   isBookedDuring,
   overlaps,
 } from "../src/domain/availability.js";
-import type { Agent, Assignment, ScheduleData, Shift } from "../src/domain/types.js";
-
-function makeShift(id: string, start: string, end: string, requiredQualifications: string[] = []): Shift {
-  return { id, site: "Test site", start: new Date(start), end: new Date(end), requiredQualifications, headcount: 1 };
-}
-
-function makeAgent(id: string, qualifications: Record<string, string> = {}): Agent {
-  return {
-    id,
-    name: `Agent ${id}`,
-    qualifications: Object.entries(qualifications).map(([code, expiresOn]) => ({ code, expiresOn })),
-  };
-}
-
-function book(agent: Agent, shift: Shift): Assignment {
-  return { id: `asg_${agent.id}_${shift.id}`, shiftId: shift.id, agentId: agent.id };
-}
+import type { ScheduleData } from "../src/domain/types.js";
+import { book, makeAgent, makeShift } from "./support/builders.js";
 
 const overnight = makeShift("night", "2026-09-15T22:00:00Z", "2026-09-16T06:00:00Z");
 
