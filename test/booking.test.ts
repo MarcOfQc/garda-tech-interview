@@ -50,7 +50,7 @@ describe("checkBooking", () => {
 
 describe("nextAssignmentId", () => {
   it("continues after the highest numbered id", () => {
-    expect(nextAssignmentId([{ id: "asg_1", shiftId: "s", agentId: "a" }, { id: "asg_7", shiftId: "s", agentId: "b" }])).toBe("asg_8");
+    expect(nextAssignmentId(["asg_1", "asg_7"])).toBe("asg_8");
   });
 
   it("starts at asg_1 when there are no assignments", () => {
@@ -58,6 +58,6 @@ describe("nextAssignmentId", () => {
   });
 
   it("ignores ids that do not follow the asg_<number> pattern", () => {
-    expect(nextAssignmentId([{ id: "legacy", shiftId: "s", agentId: "a" }, { id: "asg_2", shiftId: "s", agentId: "b" }])).toBe("asg_3");
+    expect(nextAssignmentId(["legacy", "asg_2"])).toBe("asg_3");
   });
 });

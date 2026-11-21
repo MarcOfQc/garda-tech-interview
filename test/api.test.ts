@@ -1,21 +1,21 @@
-import { readFile } from "node:fs/promises";
-import { beforeEach, describe, expect, it } from "vitest";
-import { JsonFileScheduleStore } from "../src/data/json-file-schedule-store.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { SqliteScheduleStore } from "../src/data/sqlite/sqlite-schedule-store.js";
 import { buildApp } from "../src/http/app.js";
 import { book, makeAgent, makeShift } from "./support/builders.js";
-import { InMemoryScheduleStore } from "./support/in-memory-schedule-store.js";
-import { copySampleData } from "./support/sample-data-copy.js";
+import { openSeededStore } from "./support/sqlite-store.js";
 
 const marc = { id: "agt_3", name: "Marc Tremblay" };
 
 describe("with the sample data", () => {
-  let filePath: string;
+  let store: SqliteScheduleStore;
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(async () => {
-    filePath = await copySampleData();
-    app = buildApp(await JsonFileScheduleStore.open(filePath));
+    store = await openSeededStore();
+    app = buildApp(store);
   });
+
+  afterEach(() => store.close());
 
   const availableFor = (shiftId: string) =>
     app.inject({ method: "GET", url: `/api/shifts/${shiftId}/available-agents` });
@@ -23,7 +23,8 @@ describe("with the sample data", () => {
   const bookOnto = (shiftId: string, body: object) =>
     app.inject({ method: "POST", url: `/api/shifts/${shiftId}/assignments`, payload: body });
 
-  const assignmentsInFile = async () => JSON.parse(await readFile(filePath, "utf8")).assignments;
+  const assignmentsOn = (shiftId: string) =>
+    store.loadShiftSchedule(shiftId)?.data.assignments.filter((a) => a.shiftId === shiftId);
 
   describe("GET /api/shifts/:id/available-agents", () => {
     it("returns only Marc for shf_1 (Priya expired, Jordan already booked)", async () => {
@@ -49,12 +50,12 @@ describe("with the sample data", () => {
   });
 
   describe("POST /api/shifts/:id/assignments", () => {
-    it("books Marc onto shf_2, returns 201 and saves it to the file", async () => {
+    it("books Marc onto shf_2, returns 201 and stores it", async () => {
       const response = await bookOnto("shf_2", { agentId: "agt_3" });
 
       expect(response.statusCode).toBe(201);
       expect(response.json()).toEqual({ id: "asg_2", shiftId: "shf_2", agentId: "agt_3" });
-      expect(await assignmentsInFile()).toContainEqual({ id: "asg_2", shiftId: "shf_2", agentId: "agt_3" });
+      expect(assignmentsOn("shf_2")).toEqual([{ id: "asg_2", shiftId: "shf_2", agentId: "agt_3" }]);
     });
 
     it("changes what GET returns straight away, for this shift and overlapping ones", async () => {
@@ -64,23 +65,19 @@ describe("with the sample data", () => {
       expect((await availableFor("shf_1")).json()).toEqual([]);
     });
 
-    it("rejects an unqualified agent with 422 and writes nothing", async () => {
-      const before = await readFile(filePath, "utf8");
-
+    it("rejects an unqualified agent with 422 and stores nothing", async () => {
       const response = await bookOnto("shf_1", { agentId: "agt_2" });
 
       expect(response.statusCode).toBe(422);
       expect(response.json()).toEqual({ message: "Agent agt_2 is not available for shift shf_1" });
-      expect(await readFile(filePath, "utf8")).toBe(before);
+      expect(assignmentsOn("shf_1")).toEqual([{ id: "asg_1", shiftId: "shf_1", agentId: "agt_1" }]);
     });
 
-    it("rejects a double-booked agent with 422 and writes nothing", async () => {
-      const before = await readFile(filePath, "utf8");
-
+    it("rejects a double-booked agent with 422 and stores nothing", async () => {
       const response = await bookOnto("shf_2", { agentId: "agt_1" });
 
       expect(response.statusCode).toBe(422);
-      expect(await readFile(filePath, "utf8")).toBe(before);
+      expect(assignmentsOn("shf_2")).toEqual([]);
     });
 
     it("returns 409 once the shift is full", async () => {
@@ -90,7 +87,7 @@ describe("with the sample data", () => {
 
       expect(response.statusCode).toBe(409);
       expect(response.json()).toEqual({ message: "Shift shf_2 is full" });
-      expect(await assignmentsInFile()).toHaveLength(2);
+      expect(assignmentsOn("shf_2")).toHaveLength(1);
     });
 
     it("returns 404 for an unknown shift", async () => {
@@ -118,22 +115,28 @@ describe("with the sample data", () => {
 describe("with custom data", () => {
   it("returns 200 with an empty array when nobody is available, not 404", async () => {
     const shift = makeShift("shf_1", "2026-09-15T22:00:00Z", "2026-09-16T06:00:00Z", ["GUARD_LICENSE"]);
-    const app = buildApp(new InMemoryScheduleStore({ agents: [makeAgent("agt_1")], shifts: [shift], assignments: [] }));
+    const store = await openSeededStore({ agents: [makeAgent("agt_1")], shifts: [shift], assignments: [] });
 
-    const response = await app.inject({ method: "GET", url: "/api/shifts/shf_1/available-agents" });
+    const response = await buildApp(store).inject({ method: "GET", url: "/api/shifts/shf_1/available-agents" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual([]);
+    store.close();
   });
 
   it("returns 409 for an otherwise available agent when the shift is full", async () => {
     const shift = makeShift("shf_1", "2026-09-15T22:00:00Z", "2026-09-16T06:00:00Z", [], 1);
     const booked = makeAgent("agt_1");
     const free = makeAgent("agt_2");
-    const app = buildApp(new InMemoryScheduleStore({ agents: [booked, free], shifts: [shift], assignments: [book(booked, shift)] }));
+    const store = await openSeededStore({ agents: [booked, free], shifts: [shift], assignments: [book(booked, shift)] });
 
-    const response = await app.inject({ method: "POST", url: "/api/shifts/shf_1/assignments", payload: { agentId: "agt_2" } });
+    const response = await buildApp(store).inject({
+      method: "POST",
+      url: "/api/shifts/shf_1/assignments",
+      payload: { agentId: "agt_2" },
+    });
 
     expect(response.statusCode).toBe(409);
+    store.close();
   });
 });

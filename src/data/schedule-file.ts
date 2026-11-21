@@ -34,14 +34,3 @@ export function parseScheduleData(json: unknown): ScheduleData {
 export async function loadScheduleData(filePath: string): Promise<ScheduleData> {
   return parseScheduleData(JSON.parse(await readFile(filePath, "utf8")));
 }
-
-const toUtcString = (instant: Date) => instant.toISOString().replace(".000Z", "Z");
-
-export function serializeScheduleData(data: ScheduleData): string {
-  const shifts = data.shifts.map((shift) => ({
-    ...shift,
-    start: toUtcString(shift.start),
-    end: toUtcString(shift.end),
-  }));
-  return `${JSON.stringify({ ...data, shifts }, null, 2)}\n`;
-}

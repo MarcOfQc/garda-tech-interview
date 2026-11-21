@@ -1,5 +1,5 @@
 import { isAvailable } from "./availability.js";
-import type { Agent, Assignment, ScheduleData, Shift } from "./types.js";
+import type { Agent, ScheduleData, Shift } from "./types.js";
 
 export const BookingRejection = {
   ShiftFull: "shift_full",
@@ -20,10 +20,7 @@ export function checkBooking(agent: Agent, shift: Shift, data: ScheduleData): Bo
   return undefined;
 }
 
-export function nextAssignmentId(assignments: Assignment[]): string {
-  const highest = Math.max(
-    0,
-    ...assignments.map((assignment) => Number(/^asg_(\d+)$/.exec(assignment.id)?.[1] ?? 0)),
-  );
+export function nextAssignmentId(existingIds: string[]): string {
+  const highest = Math.max(0, ...existingIds.map((id) => Number(/^asg_(\d+)$/.exec(id)?.[1] ?? 0)));
   return `asg_${highest + 1}`;
 }
