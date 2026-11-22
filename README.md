@@ -56,6 +56,8 @@ curl -X POST http://localhost:3000/api/shifts/shf_2/assignments \
 
 ## Endpoints
 
+While the server runs, interactive documentation is available at **http://localhost:3000/docs** (Swagger UI: browse the endpoints and try them from the browser). The OpenAPI 3 spec itself is at **http://localhost:3000/docs/json**; Postman, Insomnia, Bruno and most API tools can import it. The spec is generated from the same Zod schemas that validate requests and responses, so it can't drift from the code.
+
 ### `GET /api/shifts/{id}/available-agents`
 
 Returns the agents who can work the shift, as `[{ "id", "name" }]`.
@@ -108,6 +110,8 @@ The `bruno/` folder is a [Bruno](https://www.usebruno.com) collection with one r
 
 To run the sequence again, reset the database first (step 1).
 
+Using another tool? Import `http://localhost:3000/docs/json` (OpenAPI) into it to get both endpoints with their parameters, bodies and responses. The Bruno-specific checks (expected status and body) don't carry over, but the table above lists them.
+
 ## Project layout
 
 ```text
@@ -125,7 +129,7 @@ src/
       schema.ts        Drizzle schema (source of the migrations)
       sqlite-schedule-store.ts   ScheduleStore backed by SQLite
   http/
-    app.ts             Fastify app and routes; request/response contracts as Zod schemas
+    app.ts             Fastify app and routes; request/response contracts as Zod schemas, also served as OpenAPI at /docs
   main.ts              entry point: open and seed the database, start the server
 drizzle/               generated SQL migrations (npm run db:generate after a schema change)
 bruno/                 Bruno collection: one request per scenario, see "Trying the API by hand"

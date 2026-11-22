@@ -108,6 +108,7 @@ describe("with the sample data", () => {
       const response = await bookOnto("shf_2", {});
 
       expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ statusCode: 400, code: "FST_ERR_VALIDATION", error: "Bad Request" });
     });
   });
 });
