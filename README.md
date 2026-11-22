@@ -6,13 +6,29 @@ A small REST API for scheduling security agents onto shifts. It's built with Typ
 
 Requires Node.js 22 or later. Nothing else: SQLite runs inside the process, so there's no database server to install or start.
 
+**1. Install once:**
+
 ```sh
 npm install
-npm start          # builds, then serves on http://localhost:3000
-npm run dev        # watch mode, no build step
-npm test           # unit, database, HTTP and concurrency tests
-npm run typecheck
 ```
+
+**2. Start the server with one of these** (both serve on http://localhost:3000, so run only one at a time):
+
+| Command | Use it to | How it runs |
+|---|---|---|
+| `npm start` | run the API as delivered | compiles to `dist/`, then runs the compiled code |
+| `npm run dev` | work on the code | runs the TypeScript directly and restarts on every save |
+
+Stop it with Ctrl+C. Starting the second one while the first is running fails with `EADDRINUSE` (port already in use). To run both, give one another port, see `PORT` below.
+
+**3. Check the code (optional, no server needed):**
+
+```sh
+npm test            # unit, database, HTTP and concurrency tests
+npm run typecheck   # TypeScript compile check
+```
+
+The tests use their own temporary databases and ports (3201, 3202), so they don't touch `schedule.db` or the running server.
 
 On first start, the app creates `schedule.db`, applies the migrations in `drizzle/`, and loads `data.json` into it. Later starts reuse the database as it is, so bookings survive restarts. To start over from the seed, stop the app and delete `schedule.db` together with `schedule.db-wal` and `schedule.db-shm` if present. The database runs in WAL mode, and the `-wal` file can hold committed changes that aren't in `schedule.db` yet.
 
@@ -68,6 +84,30 @@ Books an agent onto a shift. Body: `{ "agentId": "agt_3" }`.
 
 A rejected booking changes nothing.
 
+## Trying the API by hand
+
+The `bruno/` folder is a [Bruno](https://www.usebruno.com) collection with one request per scenario. Each request checks its expected status code, some also check the exact response body, and each one's Docs tab explains why that result is expected.
+
+1. Start from the seed: stop the server, delete the `schedule.db*` files (see "Running it"), then `npm start`.
+2. In Bruno: **Open Collection**, choose the `bruno/` folder, then select the **Local** environment (`baseUrl` = `http://localhost:3000`).
+3. Run the requests **in order**, one by one or with the Collection Runner. Request 08 creates a booking, and 09–11 depend on it.
+
+| # | Call | Expected | What it shows |
+|---|---|---|---|
+| 01 | `GET /api/shifts/shf_1/available-agents` | `200 [Marc]` | Priya's licence expired 2026-08-31; Jordan is already on `shf_1` (a shift overlaps itself) |
+| 02 | `GET /api/shifts/shf_2/available-agents` | `200 [Marc]` | Only Marc holds both qualifications; Jordan's `shf_1` (22:00–06:00) overlaps `shf_2` (23:00–03:00) |
+| 03 | `GET /api/shifts/shf_999/available-agents` | `404` | Unknown shift |
+| 04 | `POST /api/shifts/shf_1/assignments` `{"agentId":"agt_2"}` | `422` | Priya isn't available: expired licence. Nothing is stored |
+| 05 | `POST /api/shifts/shf_2/assignments` `{"agentId":"agt_1"}` | `422` | Jordan isn't available: double-booked. Nothing is stored |
+| 06 | `POST /api/shifts/shf_2/assignments` `{"agentId":"agt_999"}` | `404` | Unknown agent |
+| 07 | `POST /api/shifts/shf_2/assignments` `{}` | `400` | Missing `agentId` (request validation) |
+| 08 | `POST /api/shifts/shf_2/assignments` `{"agentId":"agt_3"}` | `201 {"id":"asg_2", …}` | The booking succeeds and is stored |
+| 09 | `GET /api/shifts/shf_2/available-agents` | `200 []` | GET reflects the booking straight away; empty array, not `404` |
+| 10 | `GET /api/shifts/shf_1/available-agents` | `200 []` | Marc now overlaps `shf_1` through his `shf_2` booking |
+| 11 | `POST /api/shifts/shf_2/assignments` `{"agentId":"agt_3"}` | `409` | `shf_2` is full (headcount 1); full is reported before unavailable. Restart the server and run it again: still `409`, the booking survived |
+
+To run the sequence again, reset the database first (step 1).
+
 ## Project layout
 
 ```text
@@ -88,6 +128,7 @@ src/
     app.ts             Fastify app and routes; request/response contracts as Zod schemas
   main.ts              entry point: open and seed the database, start the server
 drizzle/               generated SQL migrations (npm run db:generate after a schema change)
+bruno/                 Bruno collection: one request per scenario, see "Trying the API by hand"
 test/
 ```
 

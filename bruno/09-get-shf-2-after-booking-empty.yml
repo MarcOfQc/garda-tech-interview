@@ -1,0 +1,33 @@
+info:
+  name: 09 GET shf_2 after booking - empty
+  type: http
+  seq: 9
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/shifts/shf_2/available-agents"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("returns the expected body", function () {
+          expect(res.body).to.eql([]);
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Expected: 200.
+
+  Marc is now booked on shf_2, so nobody is left. 200 with [], not 404.

@@ -1,0 +1,33 @@
+info:
+  name: 01 GET shf_1 - only Marc
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/shifts/shf_1/available-agents"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("returns the expected body", function () {
+          expect(res.body).to.eql([{"id":"agt_3","name":"Marc Tremblay"}]);
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Expected: 200.
+
+  Priya's GUARD_LICENSE expired 2026-08-31; Jordan is already booked on shf_1 (it overlaps itself).

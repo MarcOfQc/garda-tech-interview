@@ -1,0 +1,36 @@
+info:
+  name: 04 POST Priya onto shf_1 - 422 expired
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/shifts/shf_1/assignments"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "agentId": "agt_2"
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "422"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Expected: 422.
+
+  Priya's licence expired before the shift starts. Nothing is stored.

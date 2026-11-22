@@ -1,0 +1,36 @@
+info:
+  name: 05 POST Jordan onto shf_2 - 422 double-booked
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/shifts/shf_2/assignments"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "agentId": "agt_1"
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "422"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Expected: 422.
+
+  Jordan is booked on shf_1, which overlaps shf_2. Nothing is stored.

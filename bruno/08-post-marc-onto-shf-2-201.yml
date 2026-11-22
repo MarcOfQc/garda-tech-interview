@@ -1,0 +1,42 @@
+info:
+  name: 08 POST Marc onto shf_2 - 201
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/shifts/shf_2/assignments"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "agentId": "agt_3"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("returns the expected body", function () {
+          expect(res.body).to.eql({"id":"asg_2","shiftId":"shf_2","agentId":"agt_3"});
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Expected: 201.
+
+  The booking. Run 01-07 first on a fresh database; after this, 09-11 show its effects.
